@@ -18,8 +18,14 @@ void* transfer(void *arg) {
     transfer_arg_t* tran = (transfer_arg_t*)(arg);
 
     printf("%d -> %d transfer $%d\n", tran->from->aid, tran->to->aid, tran->amount);
-    pthread_mutex_lock(&tran->from->m);
-    pthread_mutex_lock(&tran->to->m);
+
+    if (tran->from->aid < tran->to->aid) {
+        pthread_mutex_lock(&tran->from->m);
+        pthread_mutex_lock(&tran->to->m);
+    } else {
+        pthread_mutex_lock(&tran->to->m);
+        pthread_mutex_lock(&tran->from->m);
+    }
 
     tran->from->balance -= tran->amount;
     tran->to->balance += tran->amount;
