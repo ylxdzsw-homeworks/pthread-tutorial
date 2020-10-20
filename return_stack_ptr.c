@@ -36,5 +36,6 @@ int main(int argc, char* argv[]) {
     rc = pthread_join(p, (void**)&r);
     assert(rc == 0);
     printf("returned %d %d\n", r->x, r->y);
+    free(r);
     return 0;
 }

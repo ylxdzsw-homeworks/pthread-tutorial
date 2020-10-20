@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <assert.h>
+#include <unistd.h>
 
 typedef struct _account_t {
     int balance;
@@ -19,13 +20,9 @@ void* transfer(void *arg) {
 
     printf("%d -> %d transfer $%d\n", tran->from->aid, tran->to->aid, tran->amount);
 
-    if (tran->from->aid < tran->to->aid) {
-        pthread_mutex_lock(&tran->from->m);
-        pthread_mutex_lock(&tran->to->m);
-    } else {
-        pthread_mutex_lock(&tran->to->m);
-        pthread_mutex_lock(&tran->from->m);
-    }
+    pthread_mutex_lock(&tran->from->m);
+    sleep(5);
+    pthread_mutex_lock(&tran->to->m);
 
     tran->from->balance -= tran->amount;
     tran->to->balance += tran->amount;
