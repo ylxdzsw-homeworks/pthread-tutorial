@@ -111,6 +111,7 @@ int main(int argc, char *argv[]) {
   }
   const int num = atoi(argv[1]);
   const int k = atoi(argv[2]);
+  printf("vector len=%d. thread num=%d\n", num, k);
 
   srand(time(NULL));
 
