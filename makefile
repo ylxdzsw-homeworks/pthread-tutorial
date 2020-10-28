@@ -8,7 +8,7 @@ else
 	CFLAGS += -O3
 endif 
 
-TARGET=hello return_stack_ptr show_stack show_tid detach kway_merge_sort 
+TARGET=hello return_stack_ptr show_stack show_tid detach kway_merge_sort show_affinity
 ALL: $(TARGET)
 
 $(TARGET): %: %.c
