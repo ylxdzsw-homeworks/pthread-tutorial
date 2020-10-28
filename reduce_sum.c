@@ -5,8 +5,10 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/syscall.h>
 #include <sys/sysinfo.h>
 #include <time.h>
+#include <unistd.h>
 
 typedef struct _arg_t {
   float *dst;
@@ -53,9 +55,16 @@ void run(arg_t *args, int k, int flag) {
   }
 
   if (flag) {
-    printf("Set affinity mask to include CPUs (1, 3, 5, ...  2n+1)\n");
+    int cpu;
+    rc = syscall(SYS_getcpu, &cpu, NULL, NULL);
+    assert(rc == 0);
+    printf("Main thread runs on CPU %d\n", cpu);
+    int start = cpu % 2;
+
+    printf("Set affinity mask to include CPUs (%d, %d, %d, ...  %s)\n", start,
+           start + 2, start + 4, start ? "2n+1" : "2n");
     size_t nprocs = get_nprocs();
-    for (int i = 0, j = 1; j < nprocs && i < k; j += 2, i++) {
+    for (int i = 0, j = start; j < nprocs && i < k; j += 2, i++) {
       CPU_ZERO(&cpu_set[i]);
       CPU_SET(j, &cpu_set[i]);
       pthread_attr_setaffinity_np(&attr[i], sizeof(cpu_set_t), &cpu_set[i]);
