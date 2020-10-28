@@ -10,7 +10,6 @@
 typedef struct _arg_t {
   float *arr;
   size_t len;
-  cpu_set_t *cpuset;
 } arg_t;
 
 typedef struct _ret_t {
@@ -35,12 +34,6 @@ float *gen_array(size_t len) {
 void *reduce_sum(void *args) {
   arg_t *vec = (arg_t *)args;
 
-  if (vec->cpuset) {
-    int rc;
-    rc = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), vec->cpuset);
-    assert(rc == 0);
-  }
-
   size_t len = vec->len;
   double sum = 0.0f;
   for (int i = 0; i < len; ++i) {
@@ -52,15 +45,30 @@ void *reduce_sum(void *args) {
   return ret;
 }
 
-void run(float *arr, int len, arg_t *args, int k) {
+void run(float *arr, int len, arg_t *args, int k, int flag) {
   pthread_t ph[k];
   int rc;
+  cpu_set_t cpu_set[k];
+  pthread_attr_t attr[k];
+  for (int i = 0; i < k; ++i) {
+    rc = pthread_attr_init(&attr[i]);
+    assert(rc == 0);
+  }
+
+  if (flag) {
+    printf("Set affinity mask to include CPUs (1, 3, 5, ...  2n+1)\n");
+    for (int i = 0, j = 1; j < get_nprocs() && i < k; j += 2, i++) {
+      CPU_ZERO(&cpu_set[i]);
+      CPU_SET(j, &cpu_set[i]);
+      pthread_attr_setaffinity_np(&attr[i], sizeof(cpu_set_t), &cpu_set[i]);
+    }
+  }
 
   struct timespec start, end;
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
   for (int i = 0; i < k; ++i) {
-    rc = pthread_create(&ph[i], NULL, reduce_sum, (void *)&args[i]);
+    rc = pthread_create(&ph[i], &attr[i], reduce_sum, (void *)&args[i]);
     assert(rc == 0);
   }
 
@@ -77,15 +85,15 @@ void run(float *arr, int len, arg_t *args, int k) {
 
   printf("final sum=%.6f\n", sum);
 
-  for (int i = 0; i < k; ++i) {
-    free(rets[i]);
-  }
-
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
   uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
                       (end.tv_nsec - start.tv_nsec) * 1.0e-3;
   printf("[Merge sort]The elapsed time is %.2f ms.\n", delta_us / 1000.0);
+
+  for (int i = 0; i < k; ++i) {
+    free(rets[i]);
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -110,25 +118,15 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < k; ++i) {
     lo = hi;
     hi += chunk_size;
-    args[i] = (arg_t){arr + lo, hi - lo, NULL};
+    args[i] = (arg_t){arr + lo, hi - lo};
   }
   args[k - 1].len += r;
 
   // without setting affinity
-  run(arr, num, args, k);
+  run(arr, num, args, k, 0);
 
-  printf("Set affinity mask to include CPUs (1, 3, 5, ...  2n+1)\n");
-  for (int i = 0, j = 1; j < get_nprocs() && i < k; j += 2, i++) {
-    cpu_set_t *cpuset = (cpu_set_t *)malloc(sizeof(cpu_set_t));
-    CPU_SET(j, cpuset);
-    args[i].cpuset = cpuset;
-  }
-
-  run(arr, num, args, k);
-
-  for (int i = 0; i < k; ++i) {
-    free(args[i].cpuset);
-  }
+  // with setting affinity
+  run(arr, num, args, k, 1);
 
   return 0;
 }
