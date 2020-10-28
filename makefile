@@ -8,7 +8,7 @@ else
 	CFLAGS += -O3
 endif 
 
-TARGET=hello shared_data return_stack_ptr shared_data_mutex bank deadlock show_stack
+TARGET=hello return_stack_ptr show_stack show_tid detach
 ALL: $(TARGET)
 
 $(TARGET): %: %.c
