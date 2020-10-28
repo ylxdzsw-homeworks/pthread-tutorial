@@ -1,12 +1,12 @@
 #include <assert.h>
 #include <limits.h>
-#include <math.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 typedef struct _data {
   int *arr;
@@ -174,7 +174,8 @@ int main(int argc, char *argv[]) {
   printf("num: %d; ", num);
   printf("k: %d.", k);
   printf("level: %d.", level);
-  int threshold = num / pow(k, level);
+  int spawn_num = pow(k, level);
+  int threshold = num / spawn_num;
   printf("threshold: %d.\n", threshold);
 
   printf("Sort max_num = %d integers.\n", num);
@@ -197,7 +198,7 @@ int main(int argc, char *argv[]) {
 
   uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
                       (end.tv_nsec - start.tv_nsec) * 1.0e-3;
-  printf("[Merge sort]The elapsed time is %.2f us.\n", delta_us / 1000.0);
+  printf("[Merge sort]The elapsed time is %.2f ms.\n", delta_us / 1000.0);
 
   if (verify_sort_results(arr, num)) {
     printf("Result is wrong!\n");
