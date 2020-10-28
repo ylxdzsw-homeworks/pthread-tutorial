@@ -117,18 +117,18 @@ int main(int argc, char *argv[]) {
   // without setting affinity
   run(arr, num, args, k);
 
-  cpu_set_t cpuset;
   printf("Set affinity mask to include CPUs (1, 3, 5, ...  2n+1)\n");
-  CPU_ZERO(&cpuset);
-  for (int j = 0; j < get_nprocs(); j++)
-    if (j % 2 == 1)
-      CPU_SET(j, &cpuset);
-
-  for (int i = 0; i < k; ++i) {
-    args[i].cpuset = &cpuset;
+  for (int i = 0, j = 1; j < get_nprocs() && i < k; j += 2, i++) {
+    cpu_set_t *cpuset = (cpu_set_t *)malloc(sizeof(cpu_set_t));
+    CPU_SET(j, cpuset);
+    args[i].cpuset = cpuset;
   }
 
   run(arr, num, args, k);
+
+  for (int i = 0; i < k; ++i) {
+    free(args[i].cpuset);
+  }
 
   return 0;
 }
