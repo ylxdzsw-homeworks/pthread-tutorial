@@ -12,7 +12,7 @@ TARGET=hello return_stack_ptr show_stack show_tid detach kway_merge_sort show_af
 ALL: $(TARGET)
 
 $(TARGET): %: %.c
-	$(CC) $(CFLAGS) -o $@ $<
+	$(CC) -o $@ $< $(CFLAGS)
 
 clean:
 	rm -rf *.o $(TARGET) *.s
