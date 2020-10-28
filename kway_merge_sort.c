@@ -117,6 +117,8 @@ void *kway_mergesort(void *arg) {
   if (r) {
     args[k - 1].high += r;
   }
+  assert(args[k - 1].high == high);
+  assert(args[0].arr);
 
   // if size is not too small
   if (high - low > threshold) {
@@ -155,14 +157,15 @@ int verify_sort_results(int *arr, int len) {
 
 int main(int argc, char *argv[]) {
   printf("This is the BEGINNING of the program.\n");
-  if (argc - 1 < 2) {
-    printf("Error: The number of input integers now is %d. Please input 2 or 3 "
+  if (argc - 1 != 3) {
+    printf("Error: The number of input integers now is %d. Please input 3 "
            "integers.\n",
            argc - 1);
     exit(1);
   }
   const int num = atoi(argv[1]);
   const int k = atoi(argv[2]);
+  const int level = atoi(argv[3]);
   if (k < 2) {
     printf("k should not be less than 2!\n");
     exit(1);
@@ -170,10 +173,8 @@ int main(int argc, char *argv[]) {
 
   printf("num: %d; ", num);
   printf("k: %d.", k);
-  int threshold = num / k;
-  if (argc == 4) {
-    threshold = atoi(argv[3]);
-  }
+  printf("level: %d.", level);
+  int threshold = num / pow(k, level);
   printf("threshold: %d.\n", threshold);
 
   printf("Sort max_num = %d integers.\n", num);
