@@ -117,8 +117,6 @@ void *kway_mergesort(void *arg) {
   if (r) {
     args[k - 1].high += r;
   }
-  assert(args[k - 1].high == high);
-  assert(args[0].arr);
 
   // if size is not too small
   if (high - low > threshold) {
