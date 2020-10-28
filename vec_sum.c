@@ -64,10 +64,21 @@ void run(arg_t *args, int k, int flag) {
     printf("Set affinity mask to include CPUs (%d, %d, %d, ...  %s)\n", start,
            start + 2, start + 4, start ? "2n+1" : "2n");
     size_t nprocs = get_nprocs();
-    for (int i = 0, j = start; j < nprocs && i < k; j += 2, i++) {
+    int i = 0, j = start;
+    while (i < k) {
+      if (j == cpu) {
+        j += 2;
+        continue;
+      }
+      if (j >= nprocs) {
+        j = start;
+      }
+
       CPU_ZERO(&cpu_set[i]);
       CPU_SET(j, &cpu_set[i]);
       pthread_attr_setaffinity_np(&attr[i], sizeof(cpu_set_t), &cpu_set[i]);
+      ++i;
+      j += 2;
     }
   }
 
