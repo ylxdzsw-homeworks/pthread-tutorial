@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <sys/sysinfo.h>
 #include <time.h>
+#include <math.h>
 
 typedef struct _arg_t {
   float *arr;
@@ -37,7 +38,7 @@ void *reduce_sum(void *args) {
   size_t len = vec->len;
   double sum = 0.0f;
   for (int i = 0; i < len; ++i) {
-    sum += vec->arr[i];
+    sum += fabs(vec->arr[i]);
   }
 
   ret_t *ret = (ret_t *)malloc(sizeof(ret_t));
@@ -57,7 +58,8 @@ void run(float *arr, int len, arg_t *args, int k, int flag) {
 
   if (flag) {
     printf("Set affinity mask to include CPUs (1, 3, 5, ...  2n+1)\n");
-    for (int i = 0, j = 1; j < get_nprocs() && i < k; j += 2, i++) {
+    size_t nprocs = get_nprocs();
+    for (int i = 0, j = 1; j < nprocs && i < k; j += 2, i++) {
       CPU_ZERO(&cpu_set[i]);
       CPU_SET(j, &cpu_set[i]);
       pthread_attr_setaffinity_np(&attr[i], sizeof(cpu_set_t), &cpu_set[i]);
