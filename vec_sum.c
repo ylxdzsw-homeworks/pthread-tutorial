@@ -31,7 +31,7 @@ float *gen_array(size_t len) {
   return p;
 }
 
-void *reduce_sum(void *args) {
+void *vec_sum(void *args) {
   arg_t *vec = (arg_t *)args;
 
   float *dst = vec->dst;
@@ -75,7 +75,7 @@ void run(arg_t *args, int k, int flag) {
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
   for (int i = 0; i < k; ++i) {
-    rc = pthread_create(&ph[i], &attr[i], reduce_sum, (void *)&args[i]);
+    rc = pthread_create(&ph[i], &attr[i], vec_sum, (void *)&args[i]);
     assert(rc == 0);
   }
 
