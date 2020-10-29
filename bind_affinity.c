@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
 
   rc = pthread_getaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
   assert(rc == 0);
-  printf("Before setting: pthread_getaffinity_np() contained:\n");
+  printf("Before setting: pthread_setaffinity_np() contained:\n");
   printf("CPU ");
   for (int j = 0; j < CPU_SETSIZE; j++)
     if (CPU_ISSET(j, &cpuset))
@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
 
   rc = pthread_getaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
   assert(rc == 0);
-  printf("After setting: pthread_getaffinity_np() contained:\n");
+  printf("After setting: pthread_setaffinity_np() contained:\n");
   printf("CPU ");
   for (int j = 0; j < CPU_SETSIZE; j++)
     if (CPU_ISSET(j, &cpuset))
