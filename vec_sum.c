@@ -137,5 +137,8 @@ int main(int argc, char *argv[]) {
   // with setting affinity
   run(args, k, 1);
 
+  free(dst);
+  free(src);
+
   return 0;
 }
