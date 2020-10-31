@@ -1,5 +1,4 @@
 #include <math.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -84,8 +83,8 @@ int main(int argc, char *argv[]) {
     groud_truth = single_thread_l2_norm(vec, num);
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
-                        (end.tv_nsec - start.tv_nsec) * 1.0e-3;
+    float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
+                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
     printf("[Singlethreading]The elapsed time is %.2f ms.\n",
            delta_us / 1000.0);
   }
@@ -98,8 +97,8 @@ int main(int argc, char *argv[]) {
     your_result = multi_thread_l2_norm(vec, num, k);
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
-                        (end.tv_nsec - start.tv_nsec) * 1.0e-3;
+    float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
+                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
     printf("[Multithreading]The elapsed time is %.2f ms.\n", delta_us / 1000.0);
   }
 

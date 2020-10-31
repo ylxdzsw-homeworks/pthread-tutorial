@@ -1,4 +1,5 @@
-#include <stdint.h>
+#include <assert.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,9 +22,23 @@ void *mt_memcpy(void *arg) { /* TODO: Your code here */
  * \param dst, destination pointer
  * \param src, source pointer
  * \param size, copy bytes
+ * \param k, number of threads
  */
-void multi_thread_memcpy(void *dst, const void *src,
-                         size_t size) { /* TODO: your code here */
+void multi_thread_memcpy(void *dst, const void *src, size_t size,
+                         int k) { /* TODO: your code here */
+}
+
+/*!
+ * \brief bind new threads to the same NUMA node as the main
+ * thread and then do multithreading memcy
+ *
+ * \param dst, destination pointer
+ * \param src, source pointer
+ * \param size, copy bytes
+ * \param k, number of threads
+ */
+void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size,
+                                       int k) { /* TODO: your code here */
 }
 
 void single_thread_memcpy(void *dst, const void *src, size_t size) {
@@ -67,7 +82,20 @@ int main(int argc, char *argv[]) {
   float *src = gen_array(num);
 
   // warmup
-  single_thread_memcpy(dst, src, num * sizeof(k));
+  memcpy(dst, src, num * sizeof(float));
+  {
+    struct timespec start, end;
+    printf("[C library: memcpy]start\n");
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
+    memcpy(dst, src, num * sizeof(k));
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
+                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
+    printf("[C library: memcpy]The throughput is %.2f Gbps.\n",
+           num * sizeof(float) * 8 / (delta_us * 1000.0));
+  }
 
   {
     struct timespec start, end;
@@ -77,10 +105,10 @@ int main(int argc, char *argv[]) {
     single_thread_memcpy(dst, src, num * sizeof(k));
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
-                        (end.tv_nsec - start.tv_nsec) * 1.0e-3;
-    printf("[Singlethreading]The elapsed time is %.2f ms.\n",
-           delta_us / 1000.0);
+    float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
+                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
+    printf("[Singlethreading]The throughput is %.2f Gbps.\n",
+           num * sizeof(float) * 8 / (delta_us * 1000.0));
   }
 
   {
@@ -88,12 +116,27 @@ int main(int argc, char *argv[]) {
     printf("[Multithreading]start\n");
     clock_gettime(CLOCK_MONOTONIC_RAW, &start);
 
-    multi_thread_memcpy(dst, src, num * sizeof(k));
+    multi_thread_memcpy(dst, src, num * sizeof(k), k);
 
     clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
-                        (end.tv_nsec - start.tv_nsec) * 1.0e-3;
-    printf("[Multithreading]The elapsed time is %.2f ms.\n", delta_us / 1000.0);
+    float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
+                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
+    printf("[Multithreading]The throughput is %.2f Gbps.\n",
+           num * sizeof(float) * 8 / (delta_us * 1000.0));
+  }
+
+  {
+    struct timespec start, end;
+    printf("[Multithreading with affinity]start\n");
+    clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+
+    multi_thread_memcpy_with_affinity(dst, src, num * sizeof(k), k);
+
+    clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+    float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
+                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
+    printf("[Multithreading with affinity]The throughput is %.2f Gbps.\n",
+           num * sizeof(float) * 8 / (delta_us * 1000.0));
   }
 
   free(dst);
