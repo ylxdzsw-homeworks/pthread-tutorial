@@ -12,7 +12,7 @@ typedef struct _context_t {
   bool initialized;
 } context_t;
 
-context_t *ctx;
+context_t *ctx = NULL;
 
 // singleton
 context_t *get_instance() {
