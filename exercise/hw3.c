@@ -26,18 +26,12 @@ context_t *get_instance() {
 
 int id = 0;
 
-void init(context_t *ctx, char *name) {
-  if (!ctx->initialized) {
-    ctx->name = name;
-    ctx->id = ++id;
-    ctx->initialized = true;
-  }
-}
-
 void *do_work(void *arg) {
   context_t *ctx = get_instance();
   if (!ctx->initialized) {
-    init(ctx, (char *)arg);
+    ctx->name = (char *)arg;
+    ctx->id = ++id;
+    ctx->initialized = true;
   }
   printf("name=%s\tid=%ld\n", ctx->name, ctx->id);
   return NULL;
