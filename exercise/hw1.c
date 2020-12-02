@@ -1,10 +1,19 @@
+#include <assert.h>
 #include <math.h>
+#include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 /* You may need to define struct here */
+typedef struct _arg {
+  int low;
+  int high;
+  const float *vec;
+  double partial_sum;
+} arg_t;
 
 /*!
  * \brief subroutine function
@@ -12,7 +21,17 @@
  * \param arg, input arguments pointer
  * \return void*, return pointer
  */
-void *l2_norm(void *arg) { /* TODO: Your code here */
+void *l2_norm(void *arg) {
+  arg_t *data = (arg_t *)(arg);
+  const float *vec = data->vec;
+
+  double sum = 0.0f;
+  for (int i = data->low; i < data->high; ++i) {
+    sum += vec[i] * vec[i];
+  }
+
+  data->partial_sum = sum;
+  return NULL;
 }
 
 /*!
@@ -23,8 +42,28 @@ void *l2_norm(void *arg) { /* TODO: Your code here */
  * \param k, number of threads
  * \return float, l2 norm
  */
-float multi_thread_l2_norm(const float *vec, size_t len,
-                           int k) { /* TODO: your code here */
+float multi_thread_l2_norm(const float *vec, size_t len, int k) {
+  int chunk_size = len / k;
+  pthread_t ph[k];
+  arg_t args[k];
+
+  int rc;
+  int low = 0, high = 0;
+  for (int i = 0; i < k; i++) {
+    low = high;
+    high += chunk_size;
+    args[i] = (arg_t){low, high, vec, 0};
+    rc = pthread_create(&ph[i], NULL, l2_norm, (void *)&args[i]);
+    assert(rc == 0);
+  }
+
+  double sum = 0.0f;
+  for (int i = 0; i < k; i++) {
+    rc = pthread_join(ph[i], NULL);
+    assert(rc == 0);
+    sum += args[i].partial_sum;
+  }
+  return sqrt(sum);
 }
 
 // baseline function

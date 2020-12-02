@@ -13,14 +13,21 @@ typedef struct _context_t {
 } context_t;
 
 context_t *ctx = NULL;
+pthread_mutex_t lock1 = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock2 = PTHREAD_MUTEX_INITIALIZER;
 
 // singleton
 context_t *get_instance() {
   if (ctx == NULL) {
-    ctx = (context_t *)malloc(sizeof(context_t));
-    assert(ctx != NULL);
-    ctx->initialized = false;
+    pthread_mutex_lock(&lock1);
+    if (ctx == NULL) {
+      ctx = (context_t *)malloc(sizeof(context_t));
+      assert(ctx != NULL);
+      ctx->initialized = false;
+    }
+    pthread_mutex_unlock(&lock1);
   }
+
   return ctx;
 }
 
@@ -28,11 +35,13 @@ int id = 0;
 
 void *do_work(void *arg) {
   context_t *ctx = get_instance();
+  pthread_mutex_lock(&lock2);
   if (!ctx->initialized) {
     ctx->name = (char *)arg;
     ctx->id = ++id;
     ctx->initialized = true;
   }
+  pthread_mutex_unlock(&lock2);
   printf("name=%s\tid=%ld\n", ctx->name, ctx->id);
   return NULL;
 }
