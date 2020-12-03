@@ -76,7 +76,7 @@ The purpose of the exercise is to show how NUMA affinity has an impact on multit
 
 ### Common Pitfalls
 
-1. **Wrong implementation** (-50%)
+1. **wrong implementation** (-50%)
 
 Some of you got an astonishing throughput, e.g. >1000Gbps, which is impossible in our workbench. I checked the code and found some of you do not copy all the data, e.g. only 1/4 part of data, or only copy the same part of data. 
 
@@ -87,6 +87,8 @@ Another pitfall is that some of you don't wait the threads to finish, i.e., not 
 I found some of you got worse throughput with affinity, mostly because you don't bind the threads to the same NUMA node in which the main thread is. Note that the allocated memory that need to be copied should be located in the NUMA node where the main thread is.
 
 
+Also note that you need to **compile with O3** to outperform glibc's memcpy implementation. In our workbench, the glibc's version is 2.14 , which is probably not compiled with O3.
+ 
 ## Race Condition Bugfix
 
 The best solution is to use two locks - one for access the singleton instance and the other for initialization. There is no need to lock the variable `id`, since it is inside the critical section of initialization.
