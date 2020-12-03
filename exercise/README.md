@@ -91,7 +91,7 @@ Also note that you need to **compile with O3** to outperform glibc's memcpy impl
  
 ## Race Condition Bugfix
 
-The best solution is to use two locks - one for access the singleton instance and the other for initialization. There is no need to lock the variable `id`, since it is inside the critical section of initialization.
+The best solution is to use two locks - one for accessing the singleton instance and the other for initialization. There is no need to lock the variable `id`, since it is inside the critical section of initialization.
 
 For the gdb debugging requirement, you only need to show that multiple threads enter the critial section.
 
