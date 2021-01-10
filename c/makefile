@@ -1,9 +1,9 @@
-DEBUG=0
+DEBUG=1
 CC=gcc
-CFLAGS= -pthread -Wall -lm
+CFLAGS= -pthread -Wall -lm 
 
 ifeq ($(DEBUG), 1)
-	CFLAGS += -g
+	CFLAGS += -g 
 else
 	CFLAGS += -O3
 endif 
