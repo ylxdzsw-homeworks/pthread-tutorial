@@ -5,6 +5,17 @@
 static volatile int counter = 0;
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
+void *entry_point_slow(void *arg) {
+    printf("Thread %s: begin\n", (char *)arg);
+    for (int i=0; i < 1e7; ++i) {
+        pthread_mutex_lock(&lock);
+        counter += 1;
+        pthread_mutex_unlock(&lock);
+    }
+    printf("Thread %s: done\n", (char *)arg);
+    return NULL;
+}
+
 void *entry_point(void *arg) {
     printf("Thread %s: begin\n", (char *)arg);
     pthread_mutex_lock(&lock);

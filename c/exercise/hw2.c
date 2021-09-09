@@ -10,11 +10,6 @@
 #include <unistd.h>
 
 /* You may need to define struct here */
-typedef struct _data_t {
-  float *dst;
-  const float *src;
-  size_t size;
-} data_t;
 
 /*!
  * \brief subroutine function
@@ -23,22 +18,7 @@ typedef struct _data_t {
  * \return void*, return pointer
  */
 void *mt_memcpy(void *arg) {
-  data_t *data = (data_t *)arg;
-  float *dst = data->dst;
-  const float *src = data->src;
-  size_t size = data->size;
-
-  const float *in = (const float *)src;
-  float *out = (float *)dst;
-
-  for (size_t i = 0; i < size / 4; ++i) {
-    out[i] = in[i];
-  }
-  if (size % 4) {
-    memcpy(out + size / 4, in + size / 4, size % 4);
-  }
-
-  return NULL;
+    /* TODO: Your code here. */
 }
 
 /*!
@@ -49,20 +29,7 @@ void *mt_memcpy(void *arg) {
  * \param size, copy bytes
  */
 void multi_thread_memcpy(void *dst, const void *src, size_t size, int k) {
-  pthread_t ph[k];
-  int rc;
-  data_t data[k];
-  size_t chunk_size = size / k;
-  for (int i = 0; i < k; ++i) {
-    data[i] = (data_t){dst + chunk_size * i, src + chunk_size * i, chunk_size};
-    rc = pthread_create(&ph[i], NULL, mt_memcpy, &data[i]);
-    assert(rc == 0);
-  }
-
-  for (int i = 0; i < k; ++i) {
-    rc = pthread_join(ph[i], NULL);
-    assert(rc == 0);
-  }
+    /* TODO: Your code here. */
 }
 
 /*!
@@ -75,54 +42,7 @@ void multi_thread_memcpy(void *dst, const void *src, size_t size, int k) {
  */
 void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size,
                                        int k) {
-
-  int cpu;
-  int rc;
-  cpu_set_t cpu_set[k];
-  pthread_attr_t attr[k];
-  for (int i = 0; i < k; ++i) {
-    rc = pthread_attr_init(&attr[i]);
-    assert(rc == 0);
-  }
-
-  rc = syscall(SYS_getcpu, &cpu, NULL, NULL);
-  assert(rc == 0);
-  printf("Main thread runs on CPU %d\n", cpu);
-  int start = cpu % 2;
-
-  printf("Set affinity mask to include CPUs (%d, %d, %d, ...  %s)\n", start,
-         start + 2, start + 4, start ? "2n+1" : "2n");
-  size_t nprocs = get_nprocs();
-  int i = 0, j = start;
-  while (i < k) {
-    if (j == cpu) {
-      j += 2;
-      continue;
-    }
-    if (j >= nprocs) {
-      j = start;
-    }
-
-    CPU_ZERO(&cpu_set[i]);
-    CPU_SET(j, &cpu_set[i]);
-    pthread_attr_setaffinity_np(&attr[i], sizeof(cpu_set_t), &cpu_set[i]);
-    ++i;
-    j += 2;
-  }
-
-  pthread_t ph[k];
-  data_t data[k];
-  size_t chunk_size = size / k;
-  for (int i = 0; i < k; ++i) {
-    data[i] = (data_t){dst + chunk_size * i, src + chunk_size * i, chunk_size};
-    rc = pthread_create(&ph[i], &attr[i], mt_memcpy, &data[i]);
-    assert(rc == 0);
-  }
-
-  for (int i = 0; i < k; ++i) {
-    rc = pthread_join(ph[i], NULL);
-    assert(rc == 0);
-  }
+    /* TODO: Your code here. */
 }
 
 void single_thread_memcpy(void *dst, const void *src, size_t size) {
