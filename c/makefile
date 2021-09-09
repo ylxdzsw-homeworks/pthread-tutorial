@@ -17,3 +17,4 @@ $(TARGET): %: %.c
 
 clean:
 	rm -rf *.o $(TARGET) *.s
+	$(MAKE) -C exercise clean
