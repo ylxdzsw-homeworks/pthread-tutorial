@@ -1,3 +1,10 @@
+/**
+ * References:
+ * 1. `gettid`: https://man7.org/linux/man-pages/man2/gettid.2.html#VERSIONS
+ * 2. POSIX thread: https://en.wikipedia.org/wiki/POSIX_Threads
+ * 3. "Threads in Linux are LWP": https://stackoverflow.com/questions/28476456/threads-and-lwp-in-linux
+ * (For Linux kernel , there is no concept of thread. Each thread is viewed by kernel as a separate process)
+*/
 #include <pthread.h>
 #include <stdio.h>
 #include <sys/syscall.h>
