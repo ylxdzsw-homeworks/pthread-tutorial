@@ -16,6 +16,7 @@ typedef struct _arg_t {
   size_t len;
 } arg_t;
 
+/*---------------------------- utility function ----------------------------*/
 void init_array(float *p, size_t len) {
   for (int i = 0; i < len; ++i) {
     p[i] = (float)rand() / RAND_MAX;
@@ -46,18 +47,14 @@ void *vec_sum(void *args) {
 
 void run(arg_t *args, int k, int flag) {
   pthread_t ph[k];
-  int rc;
   cpu_set_t cpu_set[k];
   pthread_attr_t attr[k];
-  for (int i = 0; i < k; ++i) {
-    rc = pthread_attr_init(&attr[i]);
-    assert(rc == 0);
-  }
+  struct timespec start, end;
 
+  /* set CPU affinity if flag is true */
   if (flag) {
     int cpu;
-    rc = syscall(SYS_getcpu, &cpu, NULL, NULL);
-    assert(rc == 0);
+    assert( syscall(SYS_getcpu, &cpu, NULL, NULL) == 0 );
     printf("Main thread runs on CPU %d\n", cpu);
     int start = cpu % 2;
 
@@ -81,20 +78,31 @@ void run(arg_t *args, int k, int flag) {
       j += 2;
     }
   }
+  else {
+    for (int i = 0; i < k; ++i) {
+      if ( pthread_attr_init(&attr[i]) != 0 ) {
+        fprintf(stderr, "pthread_attr_init failed.\n");
+        exit(1);
+      }
+    }
+  }
 
-  struct timespec start, end;
+  
   clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-
-  for (int i = 0; i < k; ++i) {
-    rc = pthread_create(&ph[i], &attr[i], vec_sum, (void *)&args[i]);
-    assert(rc == 0);
+  {
+    for (int i = 0; i < k; ++i) {
+      if ( pthread_create(&ph[i], &attr[i], vec_sum, (void *)&args[i]) != 0 ) {
+        fprintf(stderr, "pthread_create failed.\n");
+        exit(1);
+      }
+    }
+    for (int i = 0; i < k; ++i) {
+      if ( pthread_join(ph[i], NULL) != 0 ) {
+        fprintf(stderr, "pthread_join failed.\n");
+        exit(1);
+      }
+    }
   }
-
-  for (int i = 0; i < k; ++i) {
-    rc = pthread_join(ph[i], NULL);
-    assert(rc == 0);
-  }
-
   clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
   uint64_t delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
