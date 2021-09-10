@@ -104,13 +104,6 @@ void *kway_mergesort(void *arg) {
   int k = data->k;
   int threshold = data->threshold;
 
-  if (high - low <= 1) {
-    return NULL;
-  } else if (high - low < k) {
-    sort_k(arr, low, high); //selection sort
-    return NULL;
-  }
-
   if (high - low <= 1)        /* sorted */
   {
     return NULL;
@@ -121,11 +114,11 @@ void *kway_mergesort(void *arg) {
   }
   else //(high - low >= k)    /* apply the recursive split step */
   {
-    /* calculate size of k chunks */
+    /* calculate size of the chunk */
     int len = high - low;
     int chunk_size = len / k;
     int r = len % k;
-    /* partition data for k-way */
+    /* calculate range of k chunks */
     data_t args[k];
     int sep[k + 1];
     int lo = low, hi = low;
@@ -149,7 +142,7 @@ void *kway_mergesort(void *arg) {
         kway_mergesort((void *)&args[i]);
       }
     }
-    else                            // create worker thread
+    else                            // else create worker thread
     {
       pthread_t ph[k];
 
