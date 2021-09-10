@@ -5,7 +5,7 @@
 void *func(void *data) {
   while (1) {
     printf("Speaking from the detached thread...\n");
-    sleep(5);
+    sleep(3);
   }
   pthread_exit(NULL);
 }
