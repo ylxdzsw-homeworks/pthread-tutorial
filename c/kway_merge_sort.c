@@ -17,10 +17,20 @@ typedef struct _data {
   int threshold;
 } data_t;
 
+/*---------------------------- utility function ----------------------------*/
 void init_array(int *p, size_t len) {
   for (int i = 0; i < len; ++i) {
     p[i] = rand() % 100000;
   }
+}
+
+int verify_sort_results(int *arr, int len) {
+  for (int i = 1; i < len; ++i) {
+    if (arr[i - 1] > arr[i]) {
+      return 1;
+    }
+  }
+  return 0;
 }
 
 int *gen_array(size_t len) {
@@ -38,6 +48,18 @@ void swap(int *a, int *b) {
   *b = tmp;
 }
 
+void sort_k(int *arr, int low, int high) {
+  for (int i = low; i < high; ++i) {
+    for (int j = i + 1; j < high; ++j) {
+      if (arr[i] > arr[j]) {
+        swap(&arr[i], &arr[j]);
+      }
+    }
+  }
+}
+
+
+/*---------------------------- k-way merge ----------------------------*/
 void kway_merge(int *arr, int *tmp, int *sep, int k) {
   int low = sep[0];
   int high = sep[k];
@@ -73,16 +95,6 @@ void kway_merge(int *arr, int *tmp, int *sep, int k) {
   }
 }
 
-void sort_k(int *arr, int low, int high) {
-  for (int i = low; i < high; ++i) {
-    for (int j = i + 1; j < high; ++j) {
-      if (arr[i] > arr[j]) {
-        swap(&arr[i], &arr[j]);
-      }
-    }
-  }
-}
-
 void *kway_mergesort(void *arg) {
   data_t *data = (data_t *)(arg);
   int *arr = data->arr;
@@ -92,67 +104,76 @@ void *kway_mergesort(void *arg) {
   int k = data->k;
   int threshold = data->threshold;
 
-  if (1 >= high - low) {
+  if (high - low <= 1) {
     return NULL;
-
-  } else if (k > high - low) {
-    sort_k(arr, low, high);
+  } else if (high - low < k) {
+    sort_k(arr, low, high); //selection sort
     return NULL;
   }
 
-  int len = high - low;
-  int chunk_size = len / k;
-  int r = len % k;
-
-  data_t args[k];
-  int sep[k + 1];
-  int lo = low, hi = low;
-  for (int i = 0; i < k; ++i) {
-    lo = hi;
-    hi += chunk_size;
-    sep[i] = lo;
-    args[i] = (data_t){arr, tmp, lo, hi, k, threshold};
+  if (high - low <= 1)        /* sorted */
+  {
+    return NULL;
   }
-  sep[k] = high;
-  if (r) {
-    args[k - 1].high += r;
+  else if (high - low < k) {  /* no enough data for k-way split */
+    sort_k(arr, low, high); // apply O(N^2) sort
+    return NULL;
   }
-  assert(args[k - 1].high == high);
-  assert(args[0].arr);
-
-  // if size is not too small
-  if (high - low > threshold) {
-    int rc;
-    pthread_t ph[k];
-
-    // create k threads
+  else //(high - low >= k)    /* apply the recursive split step */
+  {
+    /* calculate size of k chunks */
+    int len = high - low;
+    int chunk_size = len / k;
+    int r = len % k;
+    /* partition data for k-way */
+    data_t args[k];
+    int sep[k + 1];
+    int lo = low, hi = low;
     for (int i = 0; i < k; ++i) {
-      rc = pthread_create(&ph[i], NULL, kway_mergesort, (void *)&args[i]);
-      assert(rc == 0);
+      lo = hi;
+      hi += chunk_size;
+      sep[i] = lo;
+      args[i] = (data_t){arr, tmp, lo, hi, k, threshold};
+    }
+    sep[k] = high;
+    if (r) { //extend the range of last chunk
+      args[k - 1].high += r;
+    }
+    assert(args[k - 1].high == high);
+    assert(args[0].arr);
+
+    /* apply k-way merge sort */
+    if (high - low <= threshold)    // if above the specified recursive level
+    {
+      for (int i = 0; i < k; ++i) {
+        kway_mergesort((void *)&args[i]);
+      }
+    }
+    else                            // create worker thread
+    {
+      pthread_t ph[k];
+
+      /* create k threads */
+      for (int i=0; i<k; ++i) {
+        if ( pthread_create(&ph[i], NULL, kway_mergesort, (void *)&args[i]) != 0 )
+        {
+          fprintf(stderr, "pthread_create failed.");
+          exit(1);
+        }
+      }
+      /* join and wait */
+      for (int i=0; i<k; ++i) {
+        if ( pthread_join(ph[i], NULL) != 0 )
+        {
+          fprintf(stderr, "pthread_join failed.");
+        }
+      }
     }
 
-    for (int i = 0; i < k; ++i) {
-      rc = pthread_join(ph[i], NULL);
-      assert(rc == 0);
-    }
-  } else {
-    for (int i = 0; i < k; ++i) {
-      kway_mergesort((void *)&args[i]);
-    }
+    /* merge the sorted arrays */
+    kway_merge(arr, tmp, sep, k);
+    return NULL;
   }
-
-  // merging the sorted arrays
-  kway_merge(arr, tmp, sep, k);
-  return NULL;
-}
-
-int verify_sort_results(int *arr, int len) {
-  for (int i = 1; i < len; ++i) {
-    if (arr[i - 1] > arr[i]) {
-      return 1;
-    }
-  }
-  return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -172,8 +193,8 @@ int main(int argc, char *argv[]) {
   }
 
   printf("num: %d; ", num);
-  printf("k: %d.", k);
-  printf("level: %d.", level);
+  printf("k: %d; ", k);
+  printf("level: %d; ", level);
   int spawn_num = pow(k, level);
   int threshold = num / spawn_num;
   printf("threshold: %d.\n", threshold);
