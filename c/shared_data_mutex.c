@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <pthread.h>
+#include <assert.h>
 
 static volatile int counter = 0;
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
