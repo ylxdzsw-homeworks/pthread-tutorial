@@ -13,6 +13,7 @@ typedef struct _context_t {
 } context_t;
 
 context_t *ctx = NULL;
+static volatile int id = 0;
 
 // singleton
 context_t *get_instance() {
@@ -24,8 +25,6 @@ context_t *get_instance() {
 
   return ctx;
 }
-
-int id = 0;
 
 void *do_work(void *arg) {
   context_t *ctx = get_instance();
