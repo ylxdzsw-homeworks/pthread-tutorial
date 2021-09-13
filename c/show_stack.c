@@ -35,18 +35,29 @@ void print_error_msg(const char *idx_str, const char *msg, int ret)
   }
 }
 
-void show_stack(pthread_attr_t *attr, pthread_t thread, char *idx_str) {
+void *entry_point(void *arg) {
   int ret = 0;
+  pthread_attr_t attr;
   size_t stack_size, guard_size;
   void *stack_addr;
 
+  char *idx_str = (char *) arg;
+  pthread_t thread = pthread_self();
+
+  // try to get the attribute of the current thread.
+  if ( (ret=pthread_getattr_np(thread, &attr)) != 0 )
+  {
+    print_error_msg(idx_str, "pthread_getattr_np failed", ret);
+    return NULL;
+  }
+
   // get the guard size (unit: byte)
-  if ( (ret=pthread_attr_getguardsize(attr, &guard_size)) != 0 )
+  if ( (ret=pthread_attr_getguardsize(&attr, &guard_size)) != 0 )
   {
     print_error_msg(idx_str, "pthread_attr_getguardsize failed", ret);
   }
-  // get the stack attribute values size
-  if ( (ret=pthread_attr_getstack(attr, &stack_addr, &stack_size)) !=0 )
+  // get the stack attribute values
+  if ( (ret=pthread_attr_getstack(&attr, &stack_addr, &stack_size)) !=0 )
   {
     print_error_msg(idx_str, "pthread_attr_getstack failed", ret);
   }
@@ -57,24 +68,6 @@ void show_stack(pthread_attr_t *attr, pthread_t thread, char *idx_str) {
   printf("\t end address  \t= %p\n", stack_addr + stack_size);
   printf("\t stack size   \t= %.2f MB\n", stack_size / 1024.0 / 1024.0);
   printf("\t guard size   \t= %lu B\n", guard_size);
-}
-
-void *entry_point(void *arg) {
-  int ret = 0;
-  pthread_attr_t attr;
-  pthread_t thread = pthread_self();
-  char *idx_str = (char *) arg;
-
-  // try to get the attribute of the current thread.
-  if ( (ret=pthread_getattr_np(thread, &attr)) != 0 )
-  {
-    print_error_msg(idx_str, "pthread_getattr_np failed", ret);
-    return NULL;
-  }
-
-  // pthread_mutex_lock(&lock);
-  show_stack(&attr, thread, idx_str);
-  // pthread_mutex_unlock(&lock);
 
   return NULL;
 }
