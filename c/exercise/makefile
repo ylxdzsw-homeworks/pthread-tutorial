@@ -1,6 +1,6 @@
 DEBUG=0
 CC=gcc
-CFLAGS= -pthread -Wall -lm
+CFLAGS= -pthread -Wall -lnuma
 
 ifeq ($(DEBUG), 1)
 	CFLAGS += -g
@@ -8,7 +8,7 @@ else
 	CFLAGS += -O3
 endif 
 
-TARGET=hw1 hw2 hw3
+TARGET=hw2
 ALL: $(TARGET)
 
 $(TARGET): %: %.c
