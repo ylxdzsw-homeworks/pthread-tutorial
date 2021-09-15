@@ -8,6 +8,15 @@
 #include <sys/sysinfo.h>
 #include <time.h>
 #include <unistd.h>
+#include <numa.h>
+#include <numaif.h>
+
+#define C_MEMCPY "C library: memcpy"
+#define SINGLE_THREAD "Singlethreading"
+#define MULTI_THREAD "Multithreading"
+#define MULTI_AFFINITY "Multithreading with affinity"
+#define MEM_LOCAL "Multithreading with numa_alloc_local"
+#define MEM_INTER "Multithreading with numa_alloc_interleaved"
 
 /* You may need to define struct here */
 
@@ -40,11 +49,38 @@ void multi_thread_memcpy(void *dst, const void *src, size_t size, int k) {
  * \param src, source pointer
  * \param size, copy bytes
  */
-void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size,
-                                       int k) {
+void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size, int k) {
     /* TODO: Your code here. */
 }
 
+
+/*!
+ * \brief (Bonus Question) subroutine function for the
+ * bonus question.
+ *
+ * \param arg, input arguments pointer
+ * \return void*, return pointer
+ */
+void *mt_page_memcpy(void *arg) {
+    /* TODO: (Bonus Question) Your code here. */
+}
+
+/*!
+ * \brief (Bonus Question) bind new threads to different 
+ * NUMA nodes. For 32 threads, you bind each node with 16
+ * threads. Run your code with two memory policies,
+ * 1) *local*, 2) *interleave*.
+ *
+ * \param dst, destination pointer
+ * \param src, source pointer
+ * \param size, size of the data
+ * \param k, # of threads
+ */
+void multi_thread_memcpy_with_interleaved_affinity(void *dst, const void *src, size_t size, int k) {
+  /* TODO: (Bonus Question) Your code here. */
+}
+
+/* benchmark: single-threaded version */
 void single_thread_memcpy(void *dst, const void *src, size_t size) {
   float *in = (float *)src;
   float *out = (float *)dst;
@@ -57,13 +93,103 @@ void single_thread_memcpy(void *dst, const void *src, size_t size) {
   }
 }
 
-float *gen_array(size_t len) {
-  float *p = (float *)malloc(len * sizeof(float));
-  if (!p) {
-    printf("failed to allocate %ld bytes memory!", len * sizeof(float));
-    exit(1);
+int execute(const char *command, int len, int k)
+{
+  /* allocate memory */
+  float *dst = (float *) malloc( len * sizeof(float) );
+  float *src = (float *) malloc( len * sizeof(float) );
+  assert(dst != NULL);
+  assert(src != NULL);
+
+  /* warmup */
+  memcpy(dst, src, len * sizeof(float));
+
+  /* timing the memcpy */
+  struct timespec start, end;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+  if ( strcmp(command, C_MEMCPY)==0 )
+  {
+    memcpy(dst, src, len*sizeof(float));
   }
-  return p;
+  else if ( strcmp(command, SINGLE_THREAD)==0 )
+  {
+    single_thread_memcpy(dst, src, len*sizeof(float));
+  }
+  else if ( strcmp(command, MULTI_THREAD)==0 )
+  {
+    multi_thread_memcpy(dst, src, len*sizeof(float), k);
+  }
+  else if ( strcmp(command, MULTI_AFFINITY)==0 )
+  {
+    multi_thread_memcpy_with_affinity(dst, src, len*sizeof(float), k);
+  }
+  else
+  {
+    fprintf(stderr, "execution failure.\n");
+    goto out;
+  }
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+
+  /* check correctness (with "warmup" disabled) */
+  assert( memcmp(src, dst, len*sizeof(float)) == 0 );
+
+  float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
+                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
+  printf("[%s]\tThe throughput is %.2f Gbps.\n",
+          command, len*sizeof(float)*8 / (delta_us*1000.0) );
+
+out: 
+  /* free the memory */
+  free(dst);
+  free(src);
+
+  return 0;
+}
+
+int execute_numa(const char *command, int len, int k)
+{
+  /* allocate memory */
+  float *dst, *src;
+  if ( strcmp(command, MEM_LOCAL)==0 )
+  {
+    dst = numa_alloc_local( len * sizeof(float) );
+    src = numa_alloc_local( len * sizeof(float) );
+  }
+  else if ( strcmp(command, MEM_INTER)==0 )
+  {
+    dst = numa_alloc_interleaved( len * sizeof(float) );
+    src = numa_alloc_interleaved( len * sizeof(float) );
+  }
+  else
+  {
+    fprintf(stderr, "numa execution failure.\n");
+    return -1;
+  }
+  assert(dst != NULL);
+  assert(src != NULL);
+
+  /* warmup */
+  memcpy(dst, src, len * sizeof(float));
+
+  /* timing the memcpy */
+  struct timespec start, end;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &start);
+  multi_thread_memcpy_with_interleaved_affinity(dst, src, len*sizeof(float), k);
+  clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+
+  /* check correctness (with "warmup" disabled) */
+  assert( memcmp(src, dst, len*sizeof(float)) == 0 );
+
+  float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
+                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
+  printf("[%s]\tThe throughput is %.2f Gbps.\n",
+          command, len*sizeof(float)*8 / (delta_us*1000.0) );
+  
+  /* free the memory */
+  numa_free(src, len*sizeof(float));
+  numa_free(dst, len*sizeof(float));
+
+  return 0;
 }
 
 int main(int argc, char *argv[]) {
@@ -73,90 +199,27 @@ int main(int argc, char *argv[]) {
             "vector size and the second is the number of threads.\n");
     exit(1);
   }
-  const int num = atoi(argv[1]);
+  const int len = atoi(argv[1]);
   const int k = atoi(argv[2]);
-  if (num < 0 || k < 1) {
+  if (len < 0 || k < 1) {
     fprintf(stderr, "Error: invalid arguments.\n");
     exit(1);
   }
+  // printf("Vector size=%d\tthreads len=%d.\n", len, k);
 
-  printf("Vector size=%d\tthreads num=%d.\n", num, k);
-
-  float *dst = gen_array(num);
-  float *src = gen_array(num);
-
-  /* warmup */
-  memcpy(dst, src, num * sizeof(float));
-
-  /* single-threaded memcpy (1 byte) */
-  {
-    struct timespec start, end;
-    printf("[C library: memcpy] start\n");
-
-    {
-      clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-      memcpy(dst, src, num * sizeof(float));
-      clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    }
-
-    float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
-                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
-    printf("[C library: memcpy] The throughput is %.2f Gbps.\n\n",
-           num * sizeof(float) * 8 / (delta_us * 1000.0));
-  }
-
+  /* C library's memcpy (1 byte) */
+  execute(C_MEMCPY, len, k);
   /* single-threaded memcpy (4 bytes) */
-  {
-    struct timespec start, end;
-    printf("[Singlethreading] start\n");
-
-    {
-      clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-      single_thread_memcpy(dst, src, num * sizeof(float));
-      clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    }
-
-    float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
-                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
-    printf("[Singlethreading] The throughput is %.2f Gbps.\n\n",
-           num * sizeof(float) * 8 / (delta_us * 1000.0));
-  }
-
+  execute(SINGLE_THREAD, len, k);
   /* multi-threaded memcpy */
-  {
-    struct timespec start, end;
-    printf("[Multithreading] start\n");
-
-    {
-      clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-      multi_thread_memcpy(dst, src, num * sizeof(float), k);
-      clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    }
-
-    float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
-                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
-    printf("[Multithreading] The throughput is %.2f Gbps.\n\n",
-           num * sizeof(float) * 8 / (delta_us * 1000.0));
-  }
-
+  execute(MULTI_THREAD, len, k);
   /* multi-threaded memcpy with affinity set */
-  {
-    struct timespec start, end;
-    printf("[Multithreading with affinity] start\n");
+  execute(MULTI_AFFINITY, len, k);
 
-    {
-      clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-      multi_thread_memcpy_with_affinity(dst, src, num * sizeof(float), k);
-      clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-    }
+  /* Bonus: multi-threaded memcpy with local NUMA memory policy */
+  execute_numa(MEM_LOCAL, len, k);
+  /* Bonus: multi-threaded memcpy with interleaved NUMA memory policy */
+  execute_numa(MEM_INTER, len, k);
 
-    float delta_us = (end.tv_sec - start.tv_sec) * 1.0e6 +
-                     (end.tv_nsec - start.tv_nsec) * 1.0e-3;
-    printf("[Multithreading with affinity] The throughput is %.2f Gbps.\n",
-           num * sizeof(float) * 8 / (delta_us * 1000.0));
-  }
-
-  free(dst);
-  free(src);
   return 0;
 }
