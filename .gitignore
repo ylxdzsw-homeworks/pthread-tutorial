@@ -1,6 +1,6 @@
-solution
-!solution/solution.zip
-!solution/README.md
+c/solution/*
+!c/solution/solution.zip
+!c/solution/README.md
 
 .vscode
 # Prerequisites
