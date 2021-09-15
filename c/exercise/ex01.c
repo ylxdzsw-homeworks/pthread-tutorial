@@ -53,7 +53,7 @@ void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size, 
     /* TODO: Your code here. */
 }
 
-
+#ifdef BUILD_BONUS
 /*!
  * \brief (Bonus Question) subroutine function for the
  * bonus question.
@@ -67,8 +67,8 @@ void *mt_page_memcpy(void *arg) {
 
 /*!
  * \brief (Bonus Question) bind new threads to different 
- * NUMA nodes. For 32 threads, you bind each node with 16
- * threads. Run your code with two memory policies,
+ * NUMA nodes. E.g., for 32 threads, you bind each node
+ * with 16 threads. Run your code with two memory policies,
  * 1) *local*, 2) *interleave*.
  *
  * \param dst, destination pointer
@@ -79,6 +79,7 @@ void *mt_page_memcpy(void *arg) {
 void multi_thread_memcpy_with_interleaved_affinity(void *dst, const void *src, size_t size, int k) {
   /* TODO: (Bonus Question) Your code here. */
 }
+#endif
 
 /* benchmark: single-threaded version */
 void single_thread_memcpy(void *dst, const void *src, size_t size) {
@@ -146,6 +147,7 @@ out:
   return 0;
 }
 
+#ifdef BUILD_BONUS
 int execute_numa(const char *command, int len, int k)
 {
   /* allocate memory */
@@ -190,6 +192,7 @@ int execute_numa(const char *command, int len, int k)
 
   return 0;
 }
+#endif
 
 int main(int argc, char *argv[]) {
   if (argc != 3) {
@@ -215,10 +218,12 @@ int main(int argc, char *argv[]) {
   /* multi-threaded memcpy with affinity set */
   execute(MULTI_AFFINITY, len, k);
 
+#ifdef BUILD_BONUS
   /* Bonus: multi-threaded memcpy with local NUMA memory policy */
   execute_numa(MEM_LOCAL, len, k);
   /* Bonus: multi-threaded memcpy with interleaved NUMA memory policy */
   execute_numa(MEM_INTER, len, k);
+#endif
 
   return 0;
 }
