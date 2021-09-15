@@ -8,7 +8,7 @@ else
 	CFLAGS += -O3
 endif 
 
-TARGET=hw2
+TARGET=ex01
 ALL: $(TARGET)
 
 $(TARGET): %: %.c

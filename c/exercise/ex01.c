@@ -152,13 +152,13 @@ int execute_numa(const char *command, int len, int k)
   float *dst, *src;
   if ( strcmp(command, MEM_LOCAL)==0 )
   {
-    dst = numa_alloc_local( len * sizeof(float) );
-    src = numa_alloc_local( len * sizeof(float) );
+    /* allocate memory (`*src`, `*dst`) locally on the current node */
+    //TODO: (Bonus) Your code here.
   }
   else if ( strcmp(command, MEM_INTER)==0 )
   {
-    dst = numa_alloc_interleaved( len * sizeof(float) );
-    src = numa_alloc_interleaved( len * sizeof(float) );
+    /* allocate memory (`*src`, `*dst`) interleaved on each node */
+    //TODO: (Bonus) Your code here.
   }
   else
   {
@@ -185,9 +185,8 @@ int execute_numa(const char *command, int len, int k)
   printf("[%s]\tThe throughput is %.2f Gbps.\n",
           command, len*sizeof(float)*8 / (delta_us*1000.0) );
   
-  /* free the memory */
-  numa_free(src, len*sizeof(float));
-  numa_free(dst, len*sizeof(float));
+  /* free `*dst` and `*src` */
+  //TODO: (Bonus) Your code here.
 
   return 0;
 }
