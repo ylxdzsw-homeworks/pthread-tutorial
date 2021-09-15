@@ -1,6 +1,6 @@
 DEBUG=0
 CC=gcc
-CFLAGS= -pthread -Wall -lnuma
+CFLAGS= -pthread -Wall -lm -lnuma
 
 ifeq ($(DEBUG), 1)
 	CFLAGS += -g
