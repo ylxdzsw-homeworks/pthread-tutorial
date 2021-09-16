@@ -10,7 +10,7 @@
 void print_error_msg(const char *idx_str, const char *msg, int ret)
 {
   switch (ret)
-  {  
+  {
   case EAGAIN:  // `pthread_create`: system-imposed limit, or insufficient resources.
     fprintf(stderr, "[%s] %s: EAGAIN\n", idx_str, msg);
     break;
@@ -85,16 +85,18 @@ int main(int argc, char *argv[]) {
     print_error_msg("p1", "pthread_create failed", ret);
     return ret;
   }
-  if ( (ret=pthread_join(p1, NULL)) != 0 )
-  {
-    print_error_msg("p1", "pthread_join failed", ret);
-  }
-  
+
   // run the routine in thread p2
   if ( (ret=pthread_create(&p2, NULL, entry_point, "p2")) != 0 )
   {
     print_error_msg("p2", "pthread_create failed", ret);
     return ret;
+  }
+
+  // join and wait
+  if ( (ret=pthread_join(p1, NULL)) != 0 )
+  {
+    print_error_msg("p1", "pthread_join failed", ret);
   }
   if ( (ret=pthread_join(p2, NULL)) != 0 )
   {
