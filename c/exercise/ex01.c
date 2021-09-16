@@ -53,8 +53,6 @@ void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size, 
     /* TODO: Your code here. */
 }
 
-#define BUILD_BONUS 1
-
 /** You may would like to define a new struct for
  *  the bonus question here.
 **/
