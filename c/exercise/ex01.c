@@ -53,6 +53,12 @@ void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size, 
     /* TODO: Your code here. */
 }
 
+#define BUILD_BONUS 1
+
+/** You may would like to define a new struct for
+ *  the bonus question here.
+**/
+
 #ifdef BUILD_BONUS
 /*!
  * \brief (Bonus Question) subroutine function for the
@@ -61,7 +67,7 @@ void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size, 
  * \param arg, input arguments pointer
  * \return void*, return pointer
  */
-void *mt_page_memcpy(void *arg) {
+void *mt_page_memcpy(void *data) {
     /* TODO: (Bonus Question) Your code here. */
 }
 
