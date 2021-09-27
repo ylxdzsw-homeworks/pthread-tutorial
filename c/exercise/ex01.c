@@ -106,15 +106,14 @@ cleanup:
 void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size, int k) {
   assert(k <= get_nprocs() / 2);
 
-  int main_thread_cpu;
-  assert( syscall(SYS_getcpu, &main_thread_cpu, NULL, NULL) == 0 );
-  int cpu_id_offset = main_thread_cpu % 2;
+  int node;
+  assert( syscall(SYS_getcpu, NULL, &node) == 0 );
 
   cpu_set_t cpu_set;
   CPU_ZERO(&cpu_set);
 
   // append the CPUs in the same NUMA node into the cpu set
-  for (int cpu_id = cpu_id_offset; cpu_id < get_nprocs(); cpu_id += 2)
+  for (int cpu_id = node; cpu_id < get_nprocs(); cpu_id += 2)
     CPU_SET(cpu_id, &cpu_set);
 
   pthread_attr_t pthread_attr;
