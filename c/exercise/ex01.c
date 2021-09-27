@@ -18,7 +18,16 @@
 #define MEM_LOCAL "Multithreading with numa_alloc_local"
 #define MEM_INTER "Multithreading with numa_alloc_interleaved"
 
+#define PRINT_AFFINITY 1
+#define WARMUP 1
+
 /* You may need to define struct here */
+typedef struct {
+  const void* src; // the address of the source whole buffer
+  void* dst; // the address of the whole target buffer
+  size_t size; // the size that this thread should copy
+  int rank; // the rank of this thread
+} MtMemcpyArg;
 
 /*!
  * \brief subroutine function
@@ -27,7 +36,22 @@
  * \return void*, return pointer
  */
 void *mt_memcpy(void *arg) {
-    /* TODO: Your code here. */
+  MtMemcpyArg* mt_memcpy_arg = (MtMemcpyArg*) arg;
+
+#if PRINT_AFFINITY
+  int cpu, node;
+  int err = syscall(SYS_getcpu, &cpu, &node);
+  assert(!err);
+  printf("thread %d runs on cpu %d, NUMA node %d\n", mt_memcpy_arg->rank, cpu, node);
+#endif
+
+  // the starting address of the part that this thread should copy
+  const void* src = mt_memcpy_arg->src + mt_memcpy_arg->size * mt_memcpy_arg->rank;
+  void* dst = mt_memcpy_arg->dst + mt_memcpy_arg->size * mt_memcpy_arg->rank;
+
+  // call the single thread function to copy the part of this thread
+  single_thread_memcpy(dst, src, mt_memcpy_arg->size);
+  return NULL;
 }
 
 /*!
@@ -38,7 +62,37 @@ void *mt_memcpy(void *arg) {
  * \param size, copy bytes
  */
 void multi_thread_memcpy(void *dst, const void *src, size_t size, int k) {
-    /* TODO: Your code here. */
+  multi_thread_memcpy_with_attr(dst, src, size, k, NULL);
+}
+
+void multi_thread_memcpy_with_attr(void *dst, const void *src, size_t size, int k, pthread_attr_t* attr) {
+  size_t size_per_thread = size / k;
+  MtMemcpyArg base_arg = { .src = src, .dst = dst, .size = size_per_thread };
+
+  MtMemcpyArg* args = (MtMemcpyArg*) malloc(k * sizeof(MtMemcpyArg));
+  pthread_t* thread_handlers = (pthread_t*) malloc(k * sizeof(pthread_t));
+
+  // prepare argument object for each thread and launch them
+  for (int i = 0; i < k; i++) {
+    args[i] = base_arg;
+    args[i].rank = i;
+    int err = pthread_create(thread_handlers + i, attr, mt_memcpy, args + i);
+    assert(!err);
+  }
+
+  // copy the residual bytes in the main thread if any.
+  if (size % k)
+    single_thread_memcpy(dst + size / k * k, src + size / k * k, size % k);
+
+  // join the threads and free the argument objects.
+  for (int i = 0; i < k; i++) {
+    int err = pthread_join(thread_handlers[i], NULL);
+    assert(!err);
+  }
+
+cleanup:
+  free(args);
+  free(thread_handlers);
 }
 
 /*!
@@ -50,7 +104,30 @@ void multi_thread_memcpy(void *dst, const void *src, size_t size, int k) {
  * \param size, copy bytes
  */
 void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size, int k) {
-    /* TODO: Your code here. */
+  assert(k <= get_nprocs() / 2);
+
+  int main_thread_cpu;
+  assert( syscall(SYS_getcpu, &main_thread_cpu, NULL, NULL) == 0 );
+  int cpu_id_offset = main_thread_cpu % 2;
+
+  cpu_set_t cpu_set;
+  CPU_ZERO(&cpu_set);
+
+  // append the CPUs in the same NUMA node into the cpu set
+  for (int cpu_id = cpu_id_offset; cpu_id < get_nprocs(); cpu_id += 2)
+    CPU_SET(cpu_id, &cpu_set);
+
+  pthread_attr_t pthread_attr;
+  int err = pthread_attr_init(&pthread_attr);
+  assert(!err);
+
+  err = pthread_attr_setaffinity_np(&pthread_attr, sizeof(cpu_set_t), &cpu_set);
+  assert(!err);
+
+  // ensure that the main thread still in the NUMA node.
+  pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpu_set);
+
+  multi_thread_memcpy_with_attr(dst, src, size, k, &pthread_attr);
 }
 
 /** You may would like to define a new struct for
@@ -58,6 +135,15 @@ void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size, 
 **/
 
 #ifdef BUILD_BONUS
+
+typedef struct {
+  const void* src; // the starting address of the whole source buffer
+  void* dst; // the starting address of the whole target buffer
+  size_t size; // total size
+  int world_size; // total number of threads
+  int rank; // the rank of this thread
+} MtPageMemcpyArg;
+
 /*!
  * \brief (Bonus Question) subroutine function for the
  * bonus question.
@@ -66,7 +152,18 @@ void multi_thread_memcpy_with_affinity(void *dst, const void *src, size_t size, 
  * \return void*, return pointer
  */
 void *mt_page_memcpy(void *data) {
-    /* TODO: (Bonus Question) Your code here. */
+  MtPageMemcpyArg* arg = (MtPageMemcpyArg*) data;
+  size_t page_size = getpagesize();
+
+  assert(arg->world_size % 2 == 0); // otherwise a thread would copy pages on different nodes
+
+  size_t offset = arg->rank * page_size;
+  while (offset + page_size <= arg->size) {
+    single_thread_memcpy(arg->dst + offset, arg->src + offset, page_size);
+    offset += page_size * arg->world_size;
+  }
+
+  return NULL;
 }
 
 /*!
@@ -81,7 +178,50 @@ void *mt_page_memcpy(void *data) {
  * \param k, # of threads
  */
 void multi_thread_memcpy_with_interleaved_affinity(void *dst, const void *src, size_t size, int k) {
-  /* TODO: (Bonus Question) Your code here. */
+  size_t page_size = getpagesize();
+  MtPageMemcpyArg base_arg = { .src = src, .dst = dst, .size = size, .world_size = k };
+
+  MtPageMemcpyArg* args = (MtPageMemcpyArg*) malloc(k * sizeof(MtPageMemcpyArg));
+  pthread_t* thread_handlers = (pthread_t*) malloc(k * sizeof(pthread_t));
+
+  // get the cpu_offset so each thread is affixed to the NUMA node of the interleaved pages.
+  int cpu_offset;
+  int err = get_mempolicy(&cpu_offset, NULL, 0, src, MPOL_F_NODE | MPOL_F_ADDR);
+  assert(!err);
+
+  // prepare argument object for each thread and launch them
+  for (int i = 0; i < k; i++) {
+    args[i] = base_arg;
+    args[i].rank = i;
+
+    cpu_set_t cpu_set;
+    CPU_ZERO(&cpu_set);
+    CPU_SET(i + cpu_offset, &cpu_set);
+
+    pthread_attr_t pthread_attr;
+    int err = pthread_attr_init(&pthread_attr);
+    assert(!err);
+
+    err = pthread_attr_setaffinity_np(&pthread_attr, sizeof(cpu_set_t), &cpu_set);
+    assert(!err);
+
+    err = pthread_create(thread_handlers + i, &pthread_attr, mt_page_memcpy, args + i);
+    assert(!err);
+  }
+
+  // copy the residual bytes not aligned to pages in the main thread if any.
+  if (size % page_size)
+    single_thread_memcpy(dst + size / k * k, src + size / k * k, size % k);
+
+  // join the threads and free the argument objects.
+  for (int i = 0; i < k; i++) {
+    int err = pthread_join(thread_handlers[i], NULL);
+    assert(!err);
+  }
+
+cleanup:
+  free(args);
+  free(thread_handlers);
 }
 #endif
 
@@ -107,7 +247,9 @@ int execute(const char *command, int len, int k)
   assert(src != NULL);
 
   /* warmup */
+#if WARMUP
   memcpy(dst, src, len * sizeof(float));
+#endif
 
   /* timing the memcpy */
   struct timespec start, end;
@@ -159,12 +301,14 @@ int execute_numa(const char *command, int len, int k)
   if ( strcmp(command, MEM_LOCAL)==0 )
   {
     /* allocate memory (`*src`, `*dst`) locally on the current node */
-    //TODO: (Bonus) Your code here.
+    src = numa_alloc_local(len * sizeof(float));
+    dst = numa_alloc_local(len * sizeof(float));
   }
   else if ( strcmp(command, MEM_INTER)==0 )
   {
     /* allocate memory (`*src`, `*dst`) interleaved on each node */
-    //TODO: (Bonus) Your code here.
+    src = numa_alloc_interleaved(len * sizeof(float));
+    dst = numa_alloc_interleaved(len * sizeof(float));
   }
   else
   {
@@ -174,8 +318,27 @@ int execute_numa(const char *command, int len, int k)
   assert(dst != NULL);
   assert(src != NULL);
 
+#if PRINT_AFFINITY
+    int node;
+    size_t page_size = getpagesize();
+    int err = get_mempolicy(&node, NULL, 0, src, MPOL_F_NODE | MPOL_F_ADDR);
+    assert(!err);
+    printf("the first page of src is on node %d\n", node);
+    err = get_mempolicy(&node, NULL, 0, src + page_size / sizeof(float), MPOL_F_NODE | MPOL_F_ADDR);
+    assert(!err);
+    printf("the second page of src is on node %d\n", node);
+    err = get_mempolicy(&node, NULL, 0, dst, MPOL_F_NODE | MPOL_F_ADDR);
+    assert(!err);
+    printf("the first page of dst is on node %d\n", node);
+    err = get_mempolicy(&node, NULL, 0, dst + page_size / sizeof(float), MPOL_F_NODE | MPOL_F_ADDR);
+    assert(!err);
+    printf("the second page of dst is on node %d\n", node);
+#endif
+
   /* warmup */
+#if WARMUP
   memcpy(dst, src, len * sizeof(float));
+#endif
 
   /* timing the memcpy */
   struct timespec start, end;
@@ -192,8 +355,8 @@ int execute_numa(const char *command, int len, int k)
           command, len*sizeof(float)*8 / (delta_us*1000.0) );
   
   /* free `*dst` and `*src` */
-  //TODO: (Bonus) Your code here.
-
+  numa_free(src, len * sizeof(float));
+  numa_free(dst, len * sizeof(float));
   return 0;
 }
 #endif
